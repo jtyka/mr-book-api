@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { bookCreateSchema } from "@/lib/validation/book";
+import { requireAuth } from "@/lib/require-auth";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -27,6 +28,8 @@ function formatBook(book: any) {
 }
 
 export async function GET(_request: NextRequest, { params }: Params) {
+  const authError = await requireAuth(_request);
+  if (authError) return authError;
   const { id } = await params;
   const book = await prisma.book.findUnique({
     where: { id: Number(id) },
@@ -38,6 +41,8 @@ export async function GET(_request: NextRequest, { params }: Params) {
 }
 
 export async function PUT(request: NextRequest, { params }: Params) {
+  const authError = await requireAuth(request);
+  if (authError) return authError;
   const { id } = await params;
   const numId = Number(id);
   const existing = await prisma.book.findUnique({
@@ -78,6 +83,8 @@ export async function PUT(request: NextRequest, { params }: Params) {
 }
 
 export async function DELETE(_request: NextRequest, { params }: Params) {
+  const authError = await requireAuth(_request);
+  if (authError) return authError;
   const { id } = await params;
   const numId = Number(id);
   const existing = await prisma.book.findUnique({ where: { id: numId } });

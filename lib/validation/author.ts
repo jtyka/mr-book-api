@@ -5,6 +5,7 @@ export const authorCreateSchema = z.object({
   lastName: z.string().min(1, "Nachname ist erforderlich"),
   birthDate: z.string().nullable().optional(),
   nationality: z.string().nullable().optional(),
+  email: z.string().email("Ungültige E-Mail-Adresse").nullable().optional(),
 });
 
 export type AuthorCreateInput = z.infer<typeof authorCreateSchema>;

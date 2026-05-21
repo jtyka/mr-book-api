@@ -11,6 +11,7 @@ model Publisher {
   name    String
   country String?
   website String?
+  address String?
   books   Book[]
 
   @@map("publishers")
@@ -22,6 +23,7 @@ model Author {
   lastName    String    @map("last_name")
   birthDate   DateTime? @map("birth_date") @db.Date
   nationality String?
+  email       String?
   books       Book[]    @relation("BookAuthors")
 
   @@map("authors")
@@ -66,4 +68,27 @@ model Category {
   books    Book[]
 
   @@map("categories")
+}
+
+model User {
+  id           Int       @id @default(autoincrement())
+  email        String    @unique
+  passwordHash String    @map("password_hash")
+  name         String
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  sessions     Session[]
+
+  @@map("users")
+}
+
+model Session {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique
+  userId    Int      @map("user_id")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
 }

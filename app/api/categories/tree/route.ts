@@ -1,5 +1,6 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth } from "@/lib/require-auth";
 
 interface CategoryTree {
   id: number;
@@ -9,7 +10,9 @@ interface CategoryTree {
   children: CategoryTree[];
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const authError = await requireAuth(request);
+  if (authError) return authError;
   const allCategories = await prisma.category.findMany({
     orderBy: { name: "asc" },
     include: { parent: true },

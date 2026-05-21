@@ -2,8 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { parsePagination, buildPagedResponse } from "@/lib/pagination";
 import { publisherCreateSchema } from "@/lib/validation/publisher";
+import { requireAuth } from "@/lib/require-auth";
 
 export async function GET(request: NextRequest) {
+  const authError = await requireAuth(request);
+  if (authError) return authError;
   const { page, size, sort, dir } = parsePagination(request, { sort: "name" });
 
   const allowedSorts = ["id", "name", "country"];
@@ -21,6 +24,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const authError = await requireAuth(request);
+  if (authError) return authError;
   const body = await request.json();
   const parsed = publisherCreateSchema.safeParse(body);
 
@@ -33,6 +38,7 @@ export async function POST(request: NextRequest) {
       name: parsed.data.name,
       country: parsed.data.country ?? null,
       website: parsed.data.website ?? null,
+      address: parsed.data.address ?? null,
     },
   });
 

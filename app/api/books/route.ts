@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { parsePagination, buildPagedResponse } from "@/lib/pagination";
 import { bookCreateSchema } from "@/lib/validation/book";
+import { requireAuth } from "@/lib/require-auth";
 
 const bookInclude = {
   authors: true,
@@ -26,6 +27,8 @@ function formatBook(book: any) {
 }
 
 export async function GET(request: NextRequest) {
+  const authError = await requireAuth(request);
+  if (authError) return authError;
   const { page, size, sort, dir } = parsePagination(request, { sort: "title" });
 
   const sortMap: Record<string, object> = {
@@ -51,6 +54,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const authError = await requireAuth(request);
+  if (authError) return authError;
   const body = await request.json();
   const parsed = bookCreateSchema.safeParse(body);
 
@@ -83,6 +88,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  const authError = await requireAuth(request);
+  if (authError) return authError;
   const ids: number[] = await request.json();
 
   if (!Array.isArray(ids) || ids.length === 0) {

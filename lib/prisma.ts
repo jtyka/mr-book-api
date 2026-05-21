@@ -1,8 +1,14 @@
 import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaNeonHttp } from "@prisma/adapter-neon";
 
 function createPrismaClient() {
-  const adapter = new PrismaNeonHttp(process.env.DATABASE_URL!, {
+  const url = process.env.DATABASE_URL!;
+  if (url.startsWith("postgres://") || url.startsWith("postgresql://")) {
+    const adapter = new PrismaPg(url);
+    return new PrismaClient({ adapter });
+  }
+  const adapter = new PrismaNeonHttp(url, {
     arrayMode: false,
     fullResults: true,
   });

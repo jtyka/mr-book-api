@@ -1,8 +1,30 @@
+import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
+import * as argon2 from "argon2";
 
-const prisma = new PrismaClient();
+const adapter = new PrismaPg(process.env.DATABASE_URL!);
+const prisma = new PrismaClient({ adapter });
 
 async function main() {
+  // Default-User
+  const passwordHash = await argon2.hash("admin123", {
+    type: argon2.argon2id,
+    memoryCost: 65536,
+    timeCost: 3,
+    parallelism: 4,
+  });
+  await prisma.user.upsert({
+    where: { email: "admin@mr-book.de" },
+    update: {},
+    create: {
+      email: "admin@mr-book.de",
+      passwordHash,
+      name: "Admin",
+    },
+  });
+  console.log("Default user: admin@mr-book.de / admin123");
+
   // Kategorien (Hierarchie)
   const prosa = await prisma.category.create({ data: { name: "Prosa" } });
   const roman = await prisma.category.create({ data: { name: "Roman", parentId: prosa.id } });
