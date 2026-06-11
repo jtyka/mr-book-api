@@ -7,7 +7,7 @@ import { requireAuth } from "@/lib/require-auth";
 const bookInclude = {
   authors: true,
   publisher: true,
-  category: { include: { parent: true } },
+  categories: { include: { parent: true } },
   readingHistory: { orderBy: { startedAt: "desc" as const } },
 };
 
@@ -15,14 +15,12 @@ const bookInclude = {
 function formatBook(book: any) {
   return {
     ...book,
-    category: book.category
-      ? {
-          id: book.category.id,
-          name: book.category.name,
-          parentId: book.category.parentId,
-          parentName: book.category.parent?.name ?? null,
-        }
-      : null,
+    categories: (book.categories ?? []).map((c: any) => ({
+      id: c.id,
+      name: c.name,
+      parentId: c.parentId,
+      parentName: c.parent?.name ?? null,
+    })),
   };
 }
 
@@ -63,7 +61,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { authorIds, publisherId, categoryId, ...data } = parsed.data;
+  const { authorIds, publisherId, categoryIds, ...data } = parsed.data;
 
   const book = await prisma.book.create({
     data: {
@@ -76,7 +74,9 @@ export async function POST(request: NextRequest) {
       rating: data.rating ?? null,
       review: data.review ?? null,
       publisherId: publisherId ?? null,
-      categoryId: categoryId ?? null,
+      categories: categoryIds.length > 0
+        ? { connect: categoryIds.map((id) => ({ id })) }
+        : undefined,
       authors: authorIds.length > 0
         ? { connect: authorIds.map((id) => ({ id })) }
         : undefined,

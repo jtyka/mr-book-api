@@ -60,11 +60,14 @@ export async function GET(request: NextRequest) {
     count: r._count.id,
   }));
 
-  // Books by category (top-level)
-  const booksWithCategory = await prisma.book.findMany({
-    where: { categoryId: { not: null } },
+  // Books by category: top-level categories count distinct books in their
+  // subtree (a book in several subcategories counts once); subcategories
+  // are reported as children with their own distinct counts.
+  const booksWithCategories = await prisma.book.findMany({
+    where: { categories: { some: {} } },
     select: {
-      category: {
+      id: true,
+      categories: {
         select: {
           name: true,
           parent: { select: { name: true } },
@@ -73,13 +76,37 @@ export async function GET(request: NextRequest) {
     },
   });
 
-  const categoryCountMap = new Map<string, number>();
-  for (const b of booksWithCategory) {
-    const label = b.category?.parent?.name ?? b.category?.name ?? "Ohne";
-    categoryCountMap.set(label, (categoryCountMap.get(label) ?? 0) + 1);
+  const categoryMap = new Map<
+    string,
+    { books: Set<number>; children: Map<string, Set<number>> }
+  >();
+  for (const b of booksWithCategories) {
+    for (const cat of b.categories) {
+      const topLabel = cat.parent?.name ?? cat.name;
+      let node = categoryMap.get(topLabel);
+      if (!node) {
+        node = { books: new Set(), children: new Map() };
+        categoryMap.set(topLabel, node);
+      }
+      node.books.add(b.id);
+      if (cat.parent) {
+        let childBooks = node.children.get(cat.name);
+        if (!childBooks) {
+          childBooks = new Set();
+          node.children.set(cat.name, childBooks);
+        }
+        childBooks.add(b.id);
+      }
+    }
   }
-  const booksByCategory = Array.from(categoryCountMap.entries())
-    .map(([label, count]) => ({ label, count }))
+  const booksByCategory = Array.from(categoryMap.entries())
+    .map(([label, node]) => ({
+      label,
+      count: node.books.size,
+      children: Array.from(node.children.entries())
+        .map(([childLabel, books]) => ({ label: childLabel, count: books.size }))
+        .sort((a, b) => b.count - a.count),
+    }))
     .sort((a, b) => b.count - a.count);
 
   return NextResponse.json({

@@ -8,7 +8,7 @@ type Params = { params: Promise<{ id: string }> };
 const bookInclude = {
   authors: true,
   publisher: true,
-  category: { include: { parent: true } },
+  categories: { include: { parent: true } },
   readingHistory: { orderBy: { startedAt: "desc" as const } },
 };
 
@@ -16,14 +16,12 @@ const bookInclude = {
 function formatBook(book: any) {
   return {
     ...book,
-    category: book.category
-      ? {
-          id: book.category.id,
-          name: book.category.name,
-          parentId: book.category.parentId,
-          parentName: book.category.parent?.name ?? null,
-        }
-      : null,
+    categories: (book.categories ?? []).map((c: any) => ({
+      id: c.id,
+      name: c.name,
+      parentId: c.parentId,
+      parentName: c.parent?.name ?? null,
+    })),
   };
 }
 
@@ -57,7 +55,7 @@ export async function PUT(request: NextRequest, { params }: Params) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { authorIds, publisherId, categoryId, ...data } = parsed.data;
+  const { authorIds, publisherId, categoryIds, ...data } = parsed.data;
 
   const book = await prisma.book.update({
     where: { id: numId },
@@ -71,7 +69,9 @@ export async function PUT(request: NextRequest, { params }: Params) {
       rating: data.rating ?? null,
       review: data.review ?? null,
       publisherId: publisherId ?? null,
-      categoryId: categoryId ?? null,
+      categories: {
+        set: categoryIds.map((cid) => ({ id: cid })),
+      },
       authors: {
         set: authorIds.map((aid) => ({ id: aid })),
       },

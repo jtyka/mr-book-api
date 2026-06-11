@@ -24,6 +24,7 @@ model Author {
   birthDate   DateTime? @map("birth_date") @db.Date
   nationality String?
   email       String?
+  website     String?
   books       Book[]    @relation("BookAuthors")
 
   @@map("authors")
@@ -40,21 +41,30 @@ model Book {
   rating         Int?
   review         String?
   publisherId    Int?            @map("publisher_id")
-  categoryId     Int?            @map("category_id")
   publisher      Publisher?      @relation(fields: [publisherId], references: [id])
-  category       Category?       @relation(fields: [categoryId], references: [id])
+  categories     Category[]      @relation("BookCategories")
   authors        Author[]        @relation("BookAuthors")
   readingHistory ReadingRecord[]
 
   @@map("books")
 }
 
+// Wie genau ein Datum bekannt ist: nur Jahr, Monat+Jahr oder tagesgenau.
+// Unbekannte Teile werden im Datum mit 01 aufgefüllt (z. B. 2024-01-01 bei YEAR).
+enum DatePrecision {
+  DAY
+  MONTH
+  YEAR
+}
+
 model ReadingRecord {
-  id        Int       @id @default(autoincrement())
-  bookId    Int       @map("book_id")
-  startedAt DateTime? @map("started_at") @db.Date
-  readAt    DateTime? @map("read_at") @db.Date
-  book      Book      @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  id                 Int            @id @default(autoincrement())
+  bookId             Int            @map("book_id")
+  startedAt          DateTime?      @map("started_at") @db.Date
+  startedAtPrecision DatePrecision? @map("started_at_precision")
+  readAt             DateTime?      @map("read_at") @db.Date
+  readAtPrecision    DatePrecision? @map("read_at_precision")
+  book               Book           @relation(fields: [bookId], references: [id], onDelete: Cascade)
 
   @@map("reading_records")
 }
@@ -65,7 +75,7 @@ model Category {
   parentId Int?       @map("parent_id")
   parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id])
   children Category[] @relation("CategoryTree")
-  books    Book[]
+  books    Book[]     @relation("BookCategories")
 
   @@map("categories")
 }

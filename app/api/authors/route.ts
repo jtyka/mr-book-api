@@ -45,6 +45,7 @@ export async function POST(request: NextRequest) {
       birthDate: parsed.data.birthDate ? new Date(parsed.data.birthDate) : null,
       nationality: parsed.data.nationality ?? null,
       email: parsed.data.email ?? null,
+      website: parsed.data.website ?? null,
     },
   });
 

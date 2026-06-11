@@ -35,6 +35,7 @@ export async function PUT(request: NextRequest, { params }: Params) {
       birthDate: parsed.data.birthDate ? new Date(parsed.data.birthDate) : null,
       nationality: parsed.data.nationality ?? null,
       email: parsed.data.email ?? null,
+      website: parsed.data.website ?? null,
     },
   });
 

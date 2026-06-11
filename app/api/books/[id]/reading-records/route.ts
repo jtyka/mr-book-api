@@ -37,7 +37,13 @@ export async function POST(request: NextRequest, { params }: Params) {
     data: {
       bookId: Number(id),
       startedAt: parsed.data.startedAt ? new Date(parsed.data.startedAt) : null,
+      startedAtPrecision: parsed.data.startedAt
+        ? parsed.data.startedAtPrecision ?? "DAY"
+        : null,
       readAt: parsed.data.readAt ? new Date(parsed.data.readAt) : null,
+      readAtPrecision: parsed.data.readAt
+        ? parsed.data.readAtPrecision ?? "DAY"
+        : null,
     },
   });
 

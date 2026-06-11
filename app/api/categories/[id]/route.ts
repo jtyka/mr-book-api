@@ -97,12 +97,6 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
       where: { parentId: numId },
       data: { parentId: existing.parentId },
     });
-    // Nullify books referencing this category
-    await tx.book.updateMany({
-      where: { categoryId: numId },
-      data: { categoryId: null },
-    });
-    // Delete category
     await tx.category.delete({ where: { id: numId } });
   });
 

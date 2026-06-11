@@ -11,14 +11,18 @@ export const bookCreateSchema = z.object({
   review: z.string().nullable().optional(),
   authorIds: z.array(z.number().int()).optional().default([]),
   publisherId: z.number().int().nullable().optional(),
-  categoryId: z.number().int().nullable().optional(),
+  categoryIds: z.array(z.number().int()).optional().default([]),
 });
 
 export type BookCreateInput = z.infer<typeof bookCreateSchema>;
 
+const datePrecisionSchema = z.enum(["DAY", "MONTH", "YEAR"]);
+
 export const readingRecordCreateSchema = z.object({
   startedAt: z.string().nullable().optional(),
+  startedAtPrecision: datePrecisionSchema.nullable().optional(),
   readAt: z.string().nullable().optional(),
+  readAtPrecision: datePrecisionSchema.nullable().optional(),
 });
 
 export type ReadingRecordCreateInput = z.infer<typeof readingRecordCreateSchema>;
