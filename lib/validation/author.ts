@@ -5,7 +5,10 @@ export const authorCreateSchema = z.object({
   lastName: z.string().min(1, "Nachname ist erforderlich"),
   birthDate: z.string().nullable().optional(),
   nationality: z.string().nullable().optional(),
-  email: z.string().email("Ungültige E-Mail-Adresse").nullable().optional(),
+  email: z.preprocess(
+    (v) => (v === "" ? null : v),
+    z.string().email("Ungültige E-Mail-Adresse").nullable().optional()
+  ),
   website: z.string().nullable().optional(),
 });
 
