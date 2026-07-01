@@ -93,17 +93,19 @@ model Category {
 }
 
 model User {
-  id           Int       @id @default(autoincrement())
-  email        String    @unique
-  passwordHash String    @map("password_hash")
-  name         String
-  createdAt    DateTime  @default(now()) @map("created_at")
-  updatedAt    DateTime  @updatedAt @map("updated_at")
-  sessions     Session[]
-  publishers   Publisher[]
-  authors      Author[]
-  books        Book[]
-  categories   Category[]
+  id            Int       @id @default(autoincrement())
+  email         String    @unique
+  passwordHash  String    @map("password_hash")
+  name          String
+  emailVerified DateTime? @map("email_verified")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  sessions      Session[]
+  verificationTokens VerificationToken[]
+  publishers    Publisher[]
+  authors       Author[]
+  books         Book[]
+  categories    Category[]
 
   @@map("users")
 }
@@ -117,4 +119,29 @@ model Session {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("sessions")
+}
+
+// E-Mail-Bestätigung (Double-Opt-In). Token wird beim Registrieren erzeugt
+// und beim Klick auf den Bestätigungslink eingelöst.
+model VerificationToken {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique
+  userId    Int      @map("user_id")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("verification_tokens")
+}
+
+// Protokolliert Login-/Registrierungsversuche pro Schlüssel (i. d. R. IP)
+// für DB-basiertes Rate-Limiting — funktioniert auch serverless (Vercel/Neon).
+model AuthAttempt {
+  id        Int      @id @default(autoincrement())
+  key       String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([key, createdAt])
+  @@map("auth_attempts")
 }
