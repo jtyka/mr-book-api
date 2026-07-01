@@ -14,7 +14,7 @@ async function main() {
     timeCost: 3,
     parallelism: 4,
   });
-  await prisma.user.upsert({
+  const admin = await prisma.user.upsert({
     where: { email: "admin@mr-book.de" },
     update: {},
     create: {
@@ -23,41 +23,42 @@ async function main() {
       name: "Admin",
     },
   });
+  const userId = admin.id;
   console.log("Default user: admin@mr-book.de / admin123");
 
-  // Kategorien (Hierarchie)
-  const prosa = await prisma.category.create({ data: { name: "Prosa" } });
-  const roman = await prisma.category.create({ data: { name: "Roman", parentId: prosa.id } });
+  // Kategorien (Hierarchie) — gehören dem Default-User
+  const prosa = await prisma.category.create({ data: { name: "Prosa", userId } });
+  const roman = await prisma.category.create({ data: { name: "Roman", parentId: prosa.id, userId } });
   await prisma.category.createMany({
     data: [
-      { name: "Krimi", parentId: roman.id },
-      { name: "Fantasy", parentId: roman.id },
-      { name: "Science-Fiction", parentId: roman.id },
-      { name: "Thriller", parentId: roman.id },
-      { name: "Historischer Roman", parentId: roman.id },
-      { name: "Liebesroman", parentId: roman.id },
+      { name: "Krimi", parentId: roman.id, userId },
+      { name: "Fantasy", parentId: roman.id, userId },
+      { name: "Science-Fiction", parentId: roman.id, userId },
+      { name: "Thriller", parentId: roman.id, userId },
+      { name: "Historischer Roman", parentId: roman.id, userId },
+      { name: "Liebesroman", parentId: roman.id, userId },
     ],
   });
   await prisma.category.createMany({
     data: [
-      { name: "Novelle", parentId: prosa.id },
-      { name: "Kurzgeschichte", parentId: prosa.id },
-      { name: "Erzählung", parentId: prosa.id },
-    ],
-  });
-
-  const sachbuch = await prisma.category.create({ data: { name: "Sachbuch" } });
-  await prisma.category.createMany({
-    data: [
-      { name: "Geschichte", parentId: sachbuch.id },
-      { name: "Ratgeber", parentId: sachbuch.id },
-      { name: "Biografie", parentId: sachbuch.id },
-      { name: "Wissenschaft", parentId: sachbuch.id },
+      { name: "Novelle", parentId: prosa.id, userId },
+      { name: "Kurzgeschichte", parentId: prosa.id, userId },
+      { name: "Erzählung", parentId: prosa.id, userId },
     ],
   });
 
-  await prisma.category.create({ data: { name: "Lyrik" } });
-  await prisma.category.create({ data: { name: "Drama" } });
+  const sachbuch = await prisma.category.create({ data: { name: "Sachbuch", userId } });
+  await prisma.category.createMany({
+    data: [
+      { name: "Geschichte", parentId: sachbuch.id, userId },
+      { name: "Ratgeber", parentId: sachbuch.id, userId },
+      { name: "Biografie", parentId: sachbuch.id, userId },
+      { name: "Wissenschaft", parentId: sachbuch.id, userId },
+    ],
+  });
+
+  await prisma.category.create({ data: { name: "Lyrik", userId } });
+  await prisma.category.create({ data: { name: "Drama", userId } });
 
   console.log("Seed data created successfully.");
 }

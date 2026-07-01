@@ -31,11 +31,12 @@ function buildTree(category: any): CategoryTree {
 }
 
 export async function GET(_request: NextRequest, { params }: Params) {
-  const authError = await requireAuth(_request);
-  if (authError) return authError;
+  const auth = await requireAuth(_request);
+  if (auth instanceof NextResponse) return auth;
+  const userId = auth.id;
   const { id } = await params;
-  const category = await prisma.category.findUnique({
-    where: { id: Number(id) },
+  const category = await prisma.category.findFirst({
+    where: { id: Number(id), userId },
     include: { parent: true, children: { orderBy: { name: "asc" } } },
   });
 
@@ -44,11 +45,12 @@ export async function GET(_request: NextRequest, { params }: Params) {
 }
 
 export async function PUT(request: NextRequest, { params }: Params) {
-  const authError = await requireAuth(request);
-  if (authError) return authError;
+  const auth = await requireAuth(request);
+  if (auth instanceof NextResponse) return auth;
+  const userId = auth.id;
   const { id } = await params;
   const numId = Number(id);
-  const existing = await prisma.category.findUnique({ where: { id: numId } });
+  const existing = await prisma.category.findFirst({ where: { id: numId, userId } });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const body = await request.json();
@@ -62,7 +64,9 @@ export async function PUT(request: NextRequest, { params }: Params) {
   }
 
   if (parsed.data.parentId) {
-    const parent = await prisma.category.findUnique({ where: { id: parsed.data.parentId } });
+    const parent = await prisma.category.findFirst({
+      where: { id: parsed.data.parentId, userId },
+    });
     if (!parent) {
       return NextResponse.json({ error: "Parent category not found" }, { status: 400 });
     }
@@ -81,12 +85,13 @@ export async function PUT(request: NextRequest, { params }: Params) {
 }
 
 export async function DELETE(_request: NextRequest, { params }: Params) {
-  const authError = await requireAuth(_request);
-  if (authError) return authError;
+  const auth = await requireAuth(_request);
+  if (auth instanceof NextResponse) return auth;
+  const userId = auth.id;
   const { id } = await params;
   const numId = Number(id);
-  const existing = await prisma.category.findUnique({
-    where: { id: numId },
+  const existing = await prisma.category.findFirst({
+    where: { id: numId, userId },
     include: { children: true },
   });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });

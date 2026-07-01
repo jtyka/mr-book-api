@@ -5,8 +5,9 @@ import { authorCreateSchema } from "@/lib/validation/author";
 import { requireAuth } from "@/lib/require-auth";
 
 export async function GET(request: NextRequest) {
-  const authError = await requireAuth(request);
-  if (authError) return authError;
+  const auth = await requireAuth(request);
+  if (auth instanceof NextResponse) return auth;
+  const userId = auth.id;
   const { page, size, sort, dir } = parsePagination(request, { sort: "lastName" });
 
   const sortMap: Record<string, object> = {
@@ -18,8 +19,9 @@ export async function GET(request: NextRequest) {
   const orderBy = sortMap[sort] ?? sortMap.lastName;
 
   const [totalElements, items] = await Promise.all([
-    prisma.author.count(),
+    prisma.author.count({ where: { userId } }),
     prisma.author.findMany({
+      where: { userId },
       orderBy,
       ...(size > 0 ? { skip: page * size, take: size } : {}),
     }),
@@ -29,8 +31,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const authError = await requireAuth(request);
-  if (authError) return authError;
+  const auth = await requireAuth(request);
+  if (auth instanceof NextResponse) return auth;
+  const userId = auth.id;
   const body = await request.json();
   const parsed = authorCreateSchema.safeParse(body);
 
@@ -46,6 +49,7 @@ export async function POST(request: NextRequest) {
       nationality: parsed.data.nationality ?? null,
       email: parsed.data.email ?? null,
       website: parsed.data.website ?? null,
+      userId,
     },
   });
 

@@ -11,9 +11,11 @@ interface CategoryTree {
 }
 
 export async function GET(request: NextRequest) {
-  const authError = await requireAuth(request);
-  if (authError) return authError;
+  const auth = await requireAuth(request);
+  if (auth instanceof NextResponse) return auth;
+  const userId = auth.id;
   const allCategories = await prisma.category.findMany({
+    where: { userId },
     orderBy: { name: "asc" },
     include: { parent: true },
   });

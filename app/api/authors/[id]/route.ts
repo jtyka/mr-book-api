@@ -6,19 +6,21 @@ import { requireAuth } from "@/lib/require-auth";
 type Params = { params: Promise<{ id: string }> };
 
 export async function GET(_request: NextRequest, { params }: Params) {
-  const authError = await requireAuth(_request);
-  if (authError) return authError;
+  const auth = await requireAuth(_request);
+  if (auth instanceof NextResponse) return auth;
+  const userId = auth.id;
   const { id } = await params;
-  const author = await prisma.author.findUnique({ where: { id: Number(id) } });
+  const author = await prisma.author.findFirst({ where: { id: Number(id), userId } });
   if (!author) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json(author);
 }
 
 export async function PUT(request: NextRequest, { params }: Params) {
-  const authError = await requireAuth(request);
-  if (authError) return authError;
+  const auth = await requireAuth(request);
+  if (auth instanceof NextResponse) return auth;
+  const userId = auth.id;
   const { id } = await params;
-  const existing = await prisma.author.findUnique({ where: { id: Number(id) } });
+  const existing = await prisma.author.findFirst({ where: { id: Number(id), userId } });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const body = await request.json();
@@ -43,10 +45,11 @@ export async function PUT(request: NextRequest, { params }: Params) {
 }
 
 export async function DELETE(_request: NextRequest, { params }: Params) {
-  const authError = await requireAuth(_request);
-  if (authError) return authError;
+  const auth = await requireAuth(_request);
+  if (auth instanceof NextResponse) return auth;
+  const userId = auth.id;
   const { id } = await params;
-  const existing = await prisma.author.findUnique({ where: { id: Number(id) } });
+  const existing = await prisma.author.findFirst({ where: { id: Number(id), userId } });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   await prisma.author.delete({ where: { id: Number(id) } });

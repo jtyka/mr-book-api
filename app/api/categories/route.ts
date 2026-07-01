@@ -4,9 +4,11 @@ import { categoryCreateSchema } from "@/lib/validation/category";
 import { requireAuth } from "@/lib/require-auth";
 
 export async function GET(request: NextRequest) {
-  const authError = await requireAuth(request);
-  if (authError) return authError;
+  const auth = await requireAuth(request);
+  if (auth instanceof NextResponse) return auth;
+  const userId = auth.id;
   const categories = await prisma.category.findMany({
+    where: { userId },
     orderBy: { name: "asc" },
     include: { parent: true },
   });
@@ -22,8 +24,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const authError = await requireAuth(request);
-  if (authError) return authError;
+  const auth = await requireAuth(request);
+  if (auth instanceof NextResponse) return auth;
+  const userId = auth.id;
   const body = await request.json();
   const parsed = categoryCreateSchema.safeParse(body);
 
@@ -32,7 +35,9 @@ export async function POST(request: NextRequest) {
   }
 
   if (parsed.data.parentId) {
-    const parent = await prisma.category.findUnique({ where: { id: parsed.data.parentId } });
+    const parent = await prisma.category.findFirst({
+      where: { id: parsed.data.parentId, userId },
+    });
     if (!parent) {
       return NextResponse.json({ error: "Parent category not found" }, { status: 400 });
     }
@@ -42,6 +47,7 @@ export async function POST(request: NextRequest) {
     data: {
       name: parsed.data.name,
       parentId: parsed.data.parentId ?? null,
+      userId,
     },
     include: { parent: true },
   });

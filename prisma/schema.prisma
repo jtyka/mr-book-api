@@ -12,8 +12,11 @@ model Publisher {
   country String?
   website String?
   address String?
+  userId  Int     @map("user_id")
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   books   Book[]
 
+  @@index([userId])
   @@map("publishers")
 }
 
@@ -25,8 +28,11 @@ model Author {
   nationality String?
   email       String?
   website     String?
+  userId      Int       @map("user_id")
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   books       Book[]    @relation("BookAuthors")
 
+  @@index([userId])
   @@map("authors")
 }
 
@@ -41,11 +47,14 @@ model Book {
   rating         Int?
   review         String?
   publisherId    Int?            @map("publisher_id")
+  userId         Int             @map("user_id")
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   publisher      Publisher?      @relation(fields: [publisherId], references: [id])
   categories     Category[]      @relation("BookCategories")
   authors        Author[]        @relation("BookAuthors")
   readingHistory ReadingRecord[]
 
+  @@index([userId])
   @@map("books")
 }
 
@@ -73,10 +82,13 @@ model Category {
   id       Int        @id @default(autoincrement())
   name     String
   parentId Int?       @map("parent_id")
+  userId   Int        @map("user_id")
+  user     User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id])
   children Category[] @relation("CategoryTree")
   books    Book[]     @relation("BookCategories")
 
+  @@index([userId])
   @@map("categories")
 }
 
@@ -88,6 +100,10 @@ model User {
   createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")
   sessions     Session[]
+  publishers   Publisher[]
+  authors      Author[]
+  books        Book[]
+  categories   Category[]
 
   @@map("users")
 }

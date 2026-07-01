@@ -3,8 +3,9 @@ import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/require-auth";
 
 export async function GET(request: NextRequest) {
-  const authError = await requireAuth(request);
-  if (authError) return authError;
+  const auth = await requireAuth(request);
+  if (auth instanceof NextResponse) return auth;
+  const userId = auth.id;
   const [
     totalBooks,
     totalAuthors,
@@ -15,22 +16,23 @@ export async function GET(request: NextRequest) {
     ratingAgg,
     pageCountAgg,
   ] = await Promise.all([
-    prisma.book.count(),
-    prisma.author.count(),
-    prisma.publisher.count(),
-    prisma.category.count(),
-    prisma.readingRecord.count(),
+    prisma.book.count({ where: { userId } }),
+    prisma.author.count({ where: { userId } }),
+    prisma.publisher.count({ where: { userId } }),
+    prisma.category.count({ where: { userId } }),
+    prisma.readingRecord.count({ where: { book: { userId } } }),
     prisma.readingRecord.findMany({
+      where: { book: { userId } },
       select: { bookId: true },
       distinct: ["bookId"],
     }),
     prisma.book.aggregate({
       _avg: { rating: true },
-      where: { rating: { not: null } },
+      where: { userId, rating: { not: null } },
     }),
     prisma.book.aggregate({
       _avg: { pageCount: true },
-      where: { pageCount: { not: null } },
+      where: { userId, pageCount: { not: null } },
     }),
   ]);
 
@@ -40,7 +42,7 @@ export async function GET(request: NextRequest) {
   const byLanguageRaw = await prisma.book.groupBy({
     by: ["language"],
     _count: { id: true },
-    where: { language: { not: null } },
+    where: { userId, language: { not: null } },
     orderBy: { _count: { id: "desc" } },
   });
   const booksByLanguage = byLanguageRaw.map((r) => ({
@@ -52,7 +54,7 @@ export async function GET(request: NextRequest) {
   const byRatingRaw = await prisma.book.groupBy({
     by: ["rating"],
     _count: { id: true },
-    where: { rating: { not: null } },
+    where: { userId, rating: { not: null } },
     orderBy: { rating: "asc" },
   });
   const booksByRating = byRatingRaw.map((r) => ({
@@ -64,7 +66,7 @@ export async function GET(request: NextRequest) {
   // subtree (a book in several subcategories counts once); subcategories
   // are reported as children with their own distinct counts.
   const booksWithCategories = await prisma.book.findMany({
-    where: { categories: { some: {} } },
+    where: { userId, categories: { some: {} } },
     select: {
       id: true,
       categories: {

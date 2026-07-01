@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { bookCreateSchema } from "@/lib/validation/book";
 import { requireAuth } from "@/lib/require-auth";
+import { assertOwnedRelations } from "@/lib/ownership";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -26,11 +27,12 @@ function formatBook(book: any) {
 }
 
 export async function GET(_request: NextRequest, { params }: Params) {
-  const authError = await requireAuth(_request);
-  if (authError) return authError;
+  const auth = await requireAuth(_request);
+  if (auth instanceof NextResponse) return auth;
+  const userId = auth.id;
   const { id } = await params;
-  const book = await prisma.book.findUnique({
-    where: { id: Number(id) },
+  const book = await prisma.book.findFirst({
+    where: { id: Number(id), userId },
     include: bookInclude,
   });
 
@@ -39,12 +41,13 @@ export async function GET(_request: NextRequest, { params }: Params) {
 }
 
 export async function PUT(request: NextRequest, { params }: Params) {
-  const authError = await requireAuth(request);
-  if (authError) return authError;
+  const auth = await requireAuth(request);
+  if (auth instanceof NextResponse) return auth;
+  const userId = auth.id;
   const { id } = await params;
   const numId = Number(id);
-  const existing = await prisma.book.findUnique({
-    where: { id: numId },
+  const existing = await prisma.book.findFirst({
+    where: { id: numId, userId },
     include: { authors: true },
   });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -56,6 +59,13 @@ export async function PUT(request: NextRequest, { params }: Params) {
   }
 
   const { authorIds, publisherId, categoryIds, ...data } = parsed.data;
+
+  const ownershipError = await assertOwnedRelations(userId, {
+    authorIds,
+    categoryIds,
+    publisherId,
+  });
+  if (ownershipError) return ownershipError;
 
   const book = await prisma.book.update({
     where: { id: numId },
@@ -83,11 +93,12 @@ export async function PUT(request: NextRequest, { params }: Params) {
 }
 
 export async function DELETE(_request: NextRequest, { params }: Params) {
-  const authError = await requireAuth(_request);
-  if (authError) return authError;
+  const auth = await requireAuth(_request);
+  if (auth instanceof NextResponse) return auth;
+  const userId = auth.id;
   const { id } = await params;
   const numId = Number(id);
-  const existing = await prisma.book.findUnique({ where: { id: numId } });
+  const existing = await prisma.book.findFirst({ where: { id: numId, userId } });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   await prisma.$transaction(async (tx) => {

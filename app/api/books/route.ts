@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { parsePagination, buildPagedResponse } from "@/lib/pagination";
 import { bookCreateSchema } from "@/lib/validation/book";
 import { requireAuth } from "@/lib/require-auth";
+import { assertOwnedRelations } from "@/lib/ownership";
 
 const bookInclude = {
   authors: true,
@@ -24,9 +26,36 @@ function formatBook(book: any) {
   };
 }
 
+// Liefert die ID der Kategorie samt aller Nachfahren im Kategoriebaum (nur eigene Kategorien)
+async function categoryIdsWithDescendants(
+  categoryId: number,
+  userId: number,
+): Promise<number[]> {
+  const all = await prisma.category.findMany({
+    where: { userId },
+    select: { id: true, parentId: true },
+  });
+  const childrenByParent = new Map<number, number[]>();
+  for (const c of all) {
+    if (c.parentId === null) continue;
+    const siblings = childrenByParent.get(c.parentId) ?? [];
+    siblings.push(c.id);
+    childrenByParent.set(c.parentId, siblings);
+  }
+  const ids: number[] = [];
+  const queue = [categoryId];
+  while (queue.length > 0) {
+    const id = queue.shift()!;
+    ids.push(id);
+    queue.push(...(childrenByParent.get(id) ?? []));
+  }
+  return ids;
+}
+
 export async function GET(request: NextRequest) {
-  const authError = await requireAuth(request);
-  if (authError) return authError;
+  const auth = await requireAuth(request);
+  if (auth instanceof NextResponse) return auth;
+  const userId = auth.id;
   const { page, size, sort, dir } = parsePagination(request, { sort: "title" });
 
   const sortMap: Record<string, object> = {
@@ -37,9 +66,21 @@ export async function GET(request: NextRequest) {
   };
   const orderBy = sortMap[sort] ?? sortMap.title;
 
+  const categoryId = parseInt(
+    request.nextUrl.searchParams.get("categoryId") ?? "",
+    10
+  );
+  const where: Prisma.BookWhereInput = { userId };
+  if (Number.isFinite(categoryId)) {
+    where.categories = {
+      some: { id: { in: await categoryIdsWithDescendants(categoryId, userId) } },
+    };
+  }
+
   const [totalElements, items] = await Promise.all([
-    prisma.book.count(),
+    prisma.book.count({ where }),
     prisma.book.findMany({
+      where,
       orderBy,
       include: bookInclude,
       ...(size > 0 ? { skip: page * size, take: size } : {}),
@@ -52,8 +93,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const authError = await requireAuth(request);
-  if (authError) return authError;
+  const auth = await requireAuth(request);
+  if (auth instanceof NextResponse) return auth;
+  const userId = auth.id;
   const body = await request.json();
   const parsed = bookCreateSchema.safeParse(body);
 
@@ -62,6 +104,13 @@ export async function POST(request: NextRequest) {
   }
 
   const { authorIds, publisherId, categoryIds, ...data } = parsed.data;
+
+  const ownershipError = await assertOwnedRelations(userId, {
+    authorIds,
+    categoryIds,
+    publisherId,
+  });
+  if (ownershipError) return ownershipError;
 
   const book = await prisma.book.create({
     data: {
@@ -74,6 +123,7 @@ export async function POST(request: NextRequest) {
       rating: data.rating ?? null,
       review: data.review ?? null,
       publisherId: publisherId ?? null,
+      userId,
       categories: categoryIds.length > 0
         ? { connect: categoryIds.map((id) => ({ id })) }
         : undefined,
@@ -88,8 +138,9 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  const authError = await requireAuth(request);
-  if (authError) return authError;
+  const auth = await requireAuth(request);
+  if (auth instanceof NextResponse) return auth;
+  const userId = auth.id;
   const ids: number[] = await request.json();
 
   if (!Array.isArray(ids) || ids.length === 0) {
@@ -97,10 +148,17 @@ export async function DELETE(request: NextRequest) {
   }
 
   const count = await prisma.$transaction(async (tx) => {
+    // Nur eigene Bücher berücksichtigen
+    const owned = await tx.book.findMany({
+      where: { id: { in: ids }, userId },
+      select: { id: true },
+    });
+    const ownedIds = owned.map((b) => b.id);
+    if (ownedIds.length === 0) return 0;
     // Delete reading records first
-    await tx.readingRecord.deleteMany({ where: { bookId: { in: ids } } });
+    await tx.readingRecord.deleteMany({ where: { bookId: { in: ownedIds } } });
     // Prisma implicit M2M relations are auto-cleaned on delete
-    const result = await tx.book.deleteMany({ where: { id: { in: ids } } });
+    const result = await tx.book.deleteMany({ where: { id: { in: ownedIds } } });
     return result.count;
   });
 
