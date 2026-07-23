@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { readingRecordCreateSchema } from "@/lib/validation/book";
 import { requireAuth } from "@/lib/require-auth";
+import { parseId } from "@/lib/params";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -10,11 +11,15 @@ export async function GET(_request: NextRequest, { params }: Params) {
   if (auth instanceof NextResponse) return auth;
   const userId = auth.id;
   const { id } = await params;
-  const book = await prisma.book.findFirst({ where: { id: Number(id), userId } });
+  const bookId = parseId(id);
+  if (bookId === null) {
+    return NextResponse.json({ error: "Ungültige ID" }, { status: 400 });
+  }
+  const book = await prisma.book.findFirst({ where: { id: bookId, userId } });
   if (!book) return NextResponse.json({ error: "Book not found" }, { status: 404 });
 
   const records = await prisma.readingRecord.findMany({
-    where: { bookId: Number(id) },
+    where: { bookId },
     orderBy: { startedAt: "desc" },
   });
 
@@ -26,7 +31,11 @@ export async function POST(request: NextRequest, { params }: Params) {
   if (auth instanceof NextResponse) return auth;
   const userId = auth.id;
   const { id } = await params;
-  const book = await prisma.book.findFirst({ where: { id: Number(id), userId } });
+  const bookId = parseId(id);
+  if (bookId === null) {
+    return NextResponse.json({ error: "Ungültige ID" }, { status: 400 });
+  }
+  const book = await prisma.book.findFirst({ where: { id: bookId, userId } });
   if (!book) return NextResponse.json({ error: "Book not found" }, { status: 404 });
 
   const body = await request.json();
@@ -37,7 +46,7 @@ export async function POST(request: NextRequest, { params }: Params) {
 
   const record = await prisma.readingRecord.create({
     data: {
-      bookId: Number(id),
+      bookId,
       startedAt: parsed.data.startedAt ? new Date(parsed.data.startedAt) : null,
       startedAtPrecision: parsed.data.startedAt
         ? parsed.data.startedAtPrecision ?? "DAY"

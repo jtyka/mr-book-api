@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authorCreateSchema } from "@/lib/validation/author";
 import { requireAuth } from "@/lib/require-auth";
+import { parseId } from "@/lib/params";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -10,7 +11,11 @@ export async function GET(_request: NextRequest, { params }: Params) {
   if (auth instanceof NextResponse) return auth;
   const userId = auth.id;
   const { id } = await params;
-  const author = await prisma.author.findFirst({ where: { id: Number(id), userId } });
+  const numId = parseId(id);
+  if (numId === null) {
+    return NextResponse.json({ error: "Ungültige ID" }, { status: 400 });
+  }
+  const author = await prisma.author.findFirst({ where: { id: numId, userId } });
   if (!author) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json(author);
 }
@@ -20,7 +25,11 @@ export async function PUT(request: NextRequest, { params }: Params) {
   if (auth instanceof NextResponse) return auth;
   const userId = auth.id;
   const { id } = await params;
-  const existing = await prisma.author.findFirst({ where: { id: Number(id), userId } });
+  const numId = parseId(id);
+  if (numId === null) {
+    return NextResponse.json({ error: "Ungültige ID" }, { status: 400 });
+  }
+  const existing = await prisma.author.findFirst({ where: { id: numId, userId } });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const body = await request.json();
@@ -30,7 +39,7 @@ export async function PUT(request: NextRequest, { params }: Params) {
   }
 
   const author = await prisma.author.update({
-    where: { id: Number(id) },
+    where: { id: numId },
     data: {
       firstName: parsed.data.firstName,
       lastName: parsed.data.lastName,
@@ -49,9 +58,13 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
   if (auth instanceof NextResponse) return auth;
   const userId = auth.id;
   const { id } = await params;
-  const existing = await prisma.author.findFirst({ where: { id: Number(id), userId } });
+  const numId = parseId(id);
+  if (numId === null) {
+    return NextResponse.json({ error: "Ungültige ID" }, { status: 400 });
+  }
+  const existing = await prisma.author.findFirst({ where: { id: numId, userId } });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  await prisma.author.delete({ where: { id: Number(id) } });
+  await prisma.author.delete({ where: { id: numId } });
   return new NextResponse(null, { status: 204 });
 }

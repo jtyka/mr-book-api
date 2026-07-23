@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { parsePagination, buildPagedResponse } from "@/lib/pagination";
-import { bookCreateSchema } from "@/lib/validation/book";
+import { bookCreateSchema, bookIdsSchema } from "@/lib/validation/book";
 import { requireAuth } from "@/lib/require-auth";
 import { assertOwnedRelations } from "@/lib/ownership";
 
@@ -141,11 +141,12 @@ export async function DELETE(request: NextRequest) {
   const auth = await requireAuth(request);
   if (auth instanceof NextResponse) return auth;
   const userId = auth.id;
-  const ids: number[] = await request.json();
-
-  if (!Array.isArray(ids) || ids.length === 0) {
+  const body = await request.json().catch(() => null);
+  const parsedIds = bookIdsSchema.safeParse(body);
+  if (!parsedIds.success) {
     return NextResponse.json({ error: "Array of IDs required" }, { status: 400 });
   }
+  const ids = parsedIds.data;
 
   const count = await prisma.$transaction(async (tx) => {
     // Nur eigene Bücher berücksichtigen

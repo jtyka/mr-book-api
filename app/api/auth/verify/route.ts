@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { createSession } from "@/lib/auth";
+import { createSession, hashToken } from "@/lib/auth";
 import { verifyEmailSchema } from "@/lib/validation/auth";
 
 // Löst einen Bestätigungs-Token ein: markiert die E-Mail als verifiziert,
@@ -13,7 +13,7 @@ export async function POST(request: Request) {
   }
 
   const record = await prisma.verificationToken.findUnique({
-    where: { token: parsed.data.token },
+    where: { token: hashToken(parsed.data.token) },
     include: { user: true },
   });
 

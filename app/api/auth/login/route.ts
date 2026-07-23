@@ -18,6 +18,12 @@ const RATE_WINDOW_MS = 15 * 60 * 1000;
 const REQUIRE_VERIFICATION =
   process.env.REQUIRE_EMAIL_VERIFICATION === "true";
 
+// Argon2-Hash eines Zufallswerts (Parameter wie in lib/password.ts). Wird bei
+// unbekannter E-Mail verifiziert, damit die Antwortzeit nicht verrät, ob das
+// Konto existiert (User-Enumeration per Timing).
+const DUMMY_HASH =
+  "$argon2id$v=19$m=65536,t=3,p=4$REB/2Zjqasdxy2Wj3rGRFw$I0qvzhCmxiloajx7DRpMSQSfwZ6p7A8UefK9BqtrY9Y";
+
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
   const parsed = loginSchema.safeParse(body);
@@ -47,15 +53,11 @@ export async function POST(request: Request) {
   }
 
   const user = await prisma.user.findUnique({ where: { email } });
-  if (!user) {
-    return NextResponse.json(
-      { error: "E-Mail oder Passwort falsch" },
-      { status: 401 },
-    );
-  }
 
-  const valid = await verifyPassword(user.passwordHash, password);
-  if (!valid) {
+  // Auch bei unbekannter E-Mail wird ein Hash geprüft, damit beide Fälle
+  // gleich lange dauern.
+  const valid = await verifyPassword(user?.passwordHash ?? DUMMY_HASH, password);
+  if (!user || !valid) {
     return NextResponse.json(
       { error: "E-Mail oder Passwort falsch" },
       { status: 401 },

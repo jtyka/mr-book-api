@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { bookCreateSchema } from "@/lib/validation/book";
 import { requireAuth } from "@/lib/require-auth";
 import { assertOwnedRelations } from "@/lib/ownership";
+import { parseId } from "@/lib/params";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -31,8 +32,12 @@ export async function GET(_request: NextRequest, { params }: Params) {
   if (auth instanceof NextResponse) return auth;
   const userId = auth.id;
   const { id } = await params;
+  const numId = parseId(id);
+  if (numId === null) {
+    return NextResponse.json({ error: "Ungültige ID" }, { status: 400 });
+  }
   const book = await prisma.book.findFirst({
-    where: { id: Number(id), userId },
+    where: { id: numId, userId },
     include: bookInclude,
   });
 
@@ -45,7 +50,10 @@ export async function PUT(request: NextRequest, { params }: Params) {
   if (auth instanceof NextResponse) return auth;
   const userId = auth.id;
   const { id } = await params;
-  const numId = Number(id);
+  const numId = parseId(id);
+  if (numId === null) {
+    return NextResponse.json({ error: "Ungültige ID" }, { status: 400 });
+  }
   const existing = await prisma.book.findFirst({
     where: { id: numId, userId },
     include: { authors: true },
@@ -97,7 +105,10 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
   if (auth instanceof NextResponse) return auth;
   const userId = auth.id;
   const { id } = await params;
-  const numId = Number(id);
+  const numId = parseId(id);
+  if (numId === null) {
+    return NextResponse.json({ error: "Ungültige ID" }, { status: 400 });
+  }
   const existing = await prisma.book.findFirst({ where: { id: numId, userId } });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 

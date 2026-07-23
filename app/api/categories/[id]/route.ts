@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { categoryCreateSchema } from "@/lib/validation/category";
 import { requireAuth } from "@/lib/require-auth";
+import { parseId } from "@/lib/params";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -35,8 +36,12 @@ export async function GET(_request: NextRequest, { params }: Params) {
   if (auth instanceof NextResponse) return auth;
   const userId = auth.id;
   const { id } = await params;
+  const numId = parseId(id);
+  if (numId === null) {
+    return NextResponse.json({ error: "Ungültige ID" }, { status: 400 });
+  }
   const category = await prisma.category.findFirst({
-    where: { id: Number(id), userId },
+    where: { id: numId, userId },
     include: { parent: true, children: { orderBy: { name: "asc" } } },
   });
 
@@ -49,7 +54,10 @@ export async function PUT(request: NextRequest, { params }: Params) {
   if (auth instanceof NextResponse) return auth;
   const userId = auth.id;
   const { id } = await params;
-  const numId = Number(id);
+  const numId = parseId(id);
+  if (numId === null) {
+    return NextResponse.json({ error: "Ungültige ID" }, { status: 400 });
+  }
   const existing = await prisma.category.findFirst({ where: { id: numId, userId } });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
@@ -89,7 +97,10 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
   if (auth instanceof NextResponse) return auth;
   const userId = auth.id;
   const { id } = await params;
-  const numId = Number(id);
+  const numId = parseId(id);
+  if (numId === null) {
+    return NextResponse.json({ error: "Ungültige ID" }, { status: 400 });
+  }
   const existing = await prisma.category.findFirst({
     where: { id: numId, userId },
     include: { children: true },

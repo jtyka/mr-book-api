@@ -1,4 +1,4 @@
-import { generateToken } from "./auth";
+import { generateToken, hashToken } from "./auth";
 import { prisma } from "./prisma";
 
 const VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000; // 24 Stunden
@@ -13,11 +13,13 @@ function webBaseUrl(): string {
   return origins[0] ?? "http://localhost:3001";
 }
 
+// Auch hier landet nur der SHA-256-Hash in der DB; der Klartext-Token geht
+// ausschließlich in den Bestätigungslink.
 export async function createVerificationToken(userId: number): Promise<string> {
   const token = generateToken();
   const expiresAt = new Date(Date.now() + VERIFICATION_TTL_MS);
   await prisma.verificationToken.create({
-    data: { token, userId, expiresAt },
+    data: { token: hashToken(token), userId, expiresAt },
   });
   return token;
 }
