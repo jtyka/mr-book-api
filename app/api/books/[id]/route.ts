@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { bookCreateSchema } from "@/lib/validation/book";
 import { requireAuth } from "@/lib/require-auth";
@@ -12,13 +13,14 @@ const bookInclude = {
   publisher: true,
   categories: { include: { parent: true } },
   readingHistory: { orderBy: { startedAt: "desc" as const } },
-};
+} satisfies Prisma.BookInclude;
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function formatBook(book: any) {
+type BookWithRelations = Prisma.BookGetPayload<{ include: typeof bookInclude }>;
+
+function formatBook(book: BookWithRelations) {
   return {
     ...book,
-    categories: (book.categories ?? []).map((c: any) => ({
+    categories: book.categories.map((c) => ({
       id: c.id,
       name: c.name,
       parentId: c.parentId,
