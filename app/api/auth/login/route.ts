@@ -4,6 +4,7 @@ import { createSession } from "@/lib/auth";
 import { verifyPassword } from "@/lib/password";
 import { loginSchema } from "@/lib/validation/auth";
 import { checkRateLimit, clientIp } from "@/lib/rate-limit";
+import { parseJsonBody } from "@/lib/request-body";
 
 // Zwei Dimensionen: pro IP (bremst einen Angreifer, der viele Konten probiert)
 // und pro Konto (bremst verteilte Angriffe auf ein einzelnes Konto, die das
@@ -25,7 +26,7 @@ const DUMMY_HASH =
   "$argon2id$v=19$m=65536,t=3,p=4$REB/2Zjqasdxy2Wj3rGRFw$I0qvzhCmxiloajx7DRpMSQSfwZ6p7A8UefK9BqtrY9Y";
 
 export async function POST(request: Request) {
-  const body = await request.json().catch(() => null);
+  const body = await parseJsonBody(request);
   const parsed = loginSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: "Ungültige Eingabe" }, { status: 400 });

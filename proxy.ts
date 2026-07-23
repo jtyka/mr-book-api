@@ -16,7 +16,7 @@ function getCorsHeaders(request: NextRequest): Record<string, string> {
   };
 }
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   if (request.method === "OPTIONS") {
     return new NextResponse(null, {
       status: 204,

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { parsePagination, buildPagedResponse } from "@/lib/pagination";
 import { authorCreateSchema } from "@/lib/validation/author";
 import { requireAuth } from "@/lib/require-auth";
+import { parseJsonBody } from "@/lib/request-body";
 
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request);
@@ -34,7 +35,7 @@ export async function POST(request: NextRequest) {
   const auth = await requireAuth(request);
   if (auth instanceof NextResponse) return auth;
   const userId = auth.id;
-  const body = await request.json();
+  const body = await parseJsonBody(request);
   const parsed = authorCreateSchema.safeParse(body);
 
   if (!parsed.success) {

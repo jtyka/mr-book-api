@@ -5,6 +5,7 @@ import { bookCreateSchema } from "@/lib/validation/book";
 import { requireAuth } from "@/lib/require-auth";
 import { assertOwnedRelations } from "@/lib/ownership";
 import { parseId } from "@/lib/params";
+import { parseJsonBody } from "@/lib/request-body";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -62,7 +63,7 @@ export async function PUT(request: NextRequest, { params }: Params) {
   });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const body = await request.json();
+  const body = await parseJsonBody(request);
   const parsed = bookCreateSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });

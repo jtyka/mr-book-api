@@ -8,6 +8,7 @@ import {
   createVerificationToken,
   sendVerificationEmail,
 } from "@/lib/verification";
+import { parseJsonBody } from "@/lib/request-body";
 
 const RATE_LIMIT = 5; // Registrierungen
 const RATE_WINDOW_MS = 60 * 60 * 1000; // pro Stunde und IP
@@ -39,7 +40,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const body = await request.json();
+  const body = await parseJsonBody(request);
   const parsed = registerSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(

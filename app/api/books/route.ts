@@ -5,6 +5,7 @@ import { parsePagination, buildPagedResponse } from "@/lib/pagination";
 import { bookCreateSchema, bookIdsSchema } from "@/lib/validation/book";
 import { requireAuth } from "@/lib/require-auth";
 import { assertOwnedRelations } from "@/lib/ownership";
+import { parseJsonBody } from "@/lib/request-body";
 
 const bookInclude = {
   authors: true,
@@ -97,7 +98,7 @@ export async function POST(request: NextRequest) {
   const auth = await requireAuth(request);
   if (auth instanceof NextResponse) return auth;
   const userId = auth.id;
-  const body = await request.json();
+  const body = await parseJsonBody(request);
   const parsed = bookCreateSchema.safeParse(body);
 
   if (!parsed.success) {
@@ -142,7 +143,7 @@ export async function DELETE(request: NextRequest) {
   const auth = await requireAuth(request);
   if (auth instanceof NextResponse) return auth;
   const userId = auth.id;
-  const body = await request.json().catch(() => null);
+  const body = await parseJsonBody(request);
   const parsedIds = bookIdsSchema.safeParse(body);
   if (!parsedIds.success) {
     return NextResponse.json({ error: "Array of IDs required" }, { status: 400 });

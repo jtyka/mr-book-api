@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { publisherCreateSchema } from "@/lib/validation/publisher";
 import { requireAuth } from "@/lib/require-auth";
 import { parseId } from "@/lib/params";
+import { parseJsonBody } from "@/lib/request-body";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -32,7 +33,7 @@ export async function PUT(request: NextRequest, { params }: Params) {
   const existing = await prisma.publisher.findFirst({ where: { id: numId, userId } });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const body = await request.json();
+  const body = await parseJsonBody(request);
   const parsed = publisherCreateSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });

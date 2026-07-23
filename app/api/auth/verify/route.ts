@@ -2,11 +2,12 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createSession, hashToken } from "@/lib/auth";
 import { verifyEmailSchema } from "@/lib/validation/auth";
+import { parseJsonBody } from "@/lib/request-body";
 
 // Löst einen Bestätigungs-Token ein: markiert die E-Mail als verifiziert,
 // verbraucht den Token und meldet den Nutzer direkt an.
 export async function POST(request: Request) {
-  const body = await request.json().catch(() => null);
+  const body = await parseJsonBody(request);
   const parsed = verifyEmailSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: "Ungültiger Token" }, { status: 400 });

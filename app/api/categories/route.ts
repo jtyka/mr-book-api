@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { categoryCreateSchema } from "@/lib/validation/category";
 import { requireAuth } from "@/lib/require-auth";
+import { parseJsonBody } from "@/lib/request-body";
 
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request);
@@ -27,7 +28,7 @@ export async function POST(request: NextRequest) {
   const auth = await requireAuth(request);
   if (auth instanceof NextResponse) return auth;
   const userId = auth.id;
-  const body = await request.json();
+  const body = await parseJsonBody(request);
   const parsed = categoryCreateSchema.safeParse(body);
 
   if (!parsed.success) {
