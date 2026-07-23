@@ -1,12 +1,21 @@
 import { prisma } from "./prisma";
 
-// Ermittelt die Client-IP aus den üblichen Proxy-Headern (Vercel/Reverse-Proxy
-// setzen x-forwarded-for). Fällt auf "unknown" zurück, sodass sich Angreifer
-// ohne IP-Header einen gemeinsamen Bucket teilen statt gar keins.
+// Forwarded-Header sind nur verlässlich, wenn ein vertrauenswürdiger Proxy
+// (Vercel-Edge, eigener Reverse-Proxy) sie setzt bzw. überschreibt. Ist die API
+// direkt erreichbar, kann jeder Client x-forwarded-for frei wählen und bekäme
+// pro Fake-IP ein frisches Rate-Limit-Fenster — der Schutz wäre wirkungslos.
+// Deshalb werden die Header nur mit TRUST_PROXY_HEADERS=true ausgewertet;
+// andernfalls teilen sich alle Clients den "unknown"-Bucket.
+const TRUST_PROXY_HEADERS = process.env.TRUST_PROXY_HEADERS === "true";
+
 export function clientIp(request: Request): string {
-  const xff = request.headers.get("x-forwarded-for");
-  if (xff) return xff.split(",")[0].trim();
-  return request.headers.get("x-real-ip")?.trim() || "unknown";
+  if (TRUST_PROXY_HEADERS) {
+    const xff = request.headers.get("x-forwarded-for");
+    if (xff) return xff.split(",")[0].trim();
+    const realIp = request.headers.get("x-real-ip")?.trim();
+    if (realIp) return realIp;
+  }
+  return "unknown";
 }
 
 export interface RateLimitResult {
