@@ -28,11 +28,82 @@ export function buildVerificationUrl(token: string): string {
   return `${webBaseUrl()}/verify?token=${encodeURIComponent(token)}`;
 }
 
-// Versendet den Bestätigungslink. Aktuell nur geloggt ("Struktur ohne Versand").
-// TODO: Hier einen echten E-Mail-Provider (z. B. Resend) anbinden.
+// Knapp halten: Auf Vercel teilt sich der Versand das Laufzeitbudget der
+// Function mit Rate-Limit-Check, Argon2-Hashing und DB-Zugriffen.
+const RESEND_TIMEOUT_MS = 5_000;
+
+function verificationEmailContent(url: string): {
+  subject: string;
+  html: string;
+  text: string;
+} {
+  const subject = "Bitte bestätige deine E-Mail-Adresse";
+  const text = [
+    "Bitte bestätige deine E-Mail-Adresse für mr-book.",
+    "",
+    `Bestätigungslink: ${url}`,
+    "",
+    "Der Link ist 24 Stunden gültig.",
+    "Wenn du dich nicht registriert hast, kannst du diese E-Mail ignorieren.",
+  ].join("\n");
+  const html = `<p>Bitte bestätige deine E-Mail-Adresse für mr-book.</p>
+<p><a href="${url}">${url}</a></p>
+<p>Der Link ist 24 Stunden gültig. Wenn du dich nicht registriert hast, kannst du diese E-Mail ignorieren.</p>`;
+  return { subject, html, text };
+}
+
+// Fallback, wenn kein Mailversand konfiguriert (bzw. konfigurierbar) ist:
+// Bestätigungslink nur loggen.
+function logFallback(email: string, url: string): void {
+  console.log(
+    `[E-Mail-Verifizierung] Kein Mailversand konfiguriert — Bestätigungslink für ${email}: ${url}`,
+  );
+}
+
+// Versendet den Bestätigungslink per Resend (HTTP-API, kein SDK). Ohne
+// konfigurierten RESEND_API_KEY wird der Link wie bisher nur geloggt.
 export async function sendVerificationEmail(
   email: string,
   url: string,
 ): Promise<void> {
-  console.log(`[E-Mail-Verifizierung] Bestätigungslink für ${email}: ${url}`);
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    logFallback(email, url);
+    return;
+  }
+
+  const from = process.env.MAIL_FROM;
+  if (!from) {
+    console.error(
+      "[E-Mail-Verifizierung] RESEND_API_KEY gesetzt, aber MAIL_FROM fehlt — Mailversand nicht möglich.",
+    );
+    logFallback(email, url);
+    return;
+  }
+
+  const { subject, html, text } = verificationEmailContent(url);
+
+  try {
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ from, to: [email], subject, html, text }),
+      signal: AbortSignal.timeout(RESEND_TIMEOUT_MS),
+    });
+
+    if (!response.ok) {
+      const body = await response.text().catch(() => "");
+      console.error(
+        `[E-Mail-Verifizierung] Resend-Versand fehlgeschlagen (Status ${response.status}): ${body.slice(0, 500)}`,
+      );
+    }
+  } catch (error) {
+    console.error(
+      "[E-Mail-Verifizierung] Resend-Versand fehlgeschlagen (Netzwerk-/Timeout-Fehler):",
+      error,
+    );
+  }
 }
