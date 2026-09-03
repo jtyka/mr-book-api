@@ -7,14 +7,25 @@ export interface PaginationParams {
   dir: "asc" | "desc";
 }
 
+const MAX_SIZE = 200;
+
 export function parsePagination(
   request: NextRequest,
   defaults: Partial<PaginationParams> = {}
 ): PaginationParams {
   const params = request.nextUrl.searchParams;
+
+  const rawPage = parseInt(params.get("page") ?? "0", 10);
+  const page = Number.isFinite(rawPage) ? Math.max(0, rawPage) : 0;
+
+  const rawSize = parseInt(params.get("size") ?? String(defaults.size ?? 20), 10);
+  const size = Number.isFinite(rawSize)
+    ? Math.min(MAX_SIZE, Math.max(0, rawSize))
+    : defaults.size ?? 20;
+
   return {
-    page: Math.max(0, parseInt(params.get("page") ?? "0", 10)),
-    size: Math.max(0, parseInt(params.get("size") ?? String(defaults.size ?? 20), 10)),
+    page,
+    size,
     sort: params.get("sort") ?? defaults.sort ?? "id",
     dir: params.get("dir") === "desc" ? "desc" : "asc",
   };

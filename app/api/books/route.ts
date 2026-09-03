@@ -45,9 +45,12 @@ async function categoryIdsWithDescendants(
     childrenByParent.set(c.parentId, siblings);
   }
   const ids: number[] = [];
+  const visited = new Set<number>();
   const queue = [categoryId];
   while (queue.length > 0) {
     const id = queue.shift()!;
+    if (visited.has(id)) continue;
+    visited.add(id);
     ids.push(id);
     queue.push(...(childrenByParent.get(id) ?? []));
   }

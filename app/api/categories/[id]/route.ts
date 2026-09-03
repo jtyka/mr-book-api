@@ -73,11 +73,31 @@ export async function PUT(request: NextRequest, { params }: Params) {
   }
 
   if (parsed.data.parentId) {
-    const parent = await prisma.category.findFirst({
-      where: { id: parsed.data.parentId, userId },
+    const allCategories = await prisma.category.findMany({
+      where: { userId },
+      select: { id: true, parentId: true },
     });
+    const parent = allCategories.find((c) => c.id === parsed.data.parentId);
     if (!parent) {
       return NextResponse.json({ error: "Parent category not found" }, { status: 400 });
+    }
+
+    // Vorfahrenkette des neuen Parents nach oben ablaufen; taucht numId dabei
+    // auf, würde ein Zyklus entstehen. Visited-Set schützt vor Endlosschleife,
+    // falls bereits ein Zyklus in den Bestandsdaten existiert.
+    const byId = new Map(allCategories.map((c) => [c.id, c]));
+    const visited = new Set<number>();
+    let current: number | null = parent.id;
+    while (current !== null) {
+      if (current === numId) {
+        return NextResponse.json(
+          { error: "Kategorie kann nicht einem eigenen Nachfahren untergeordnet werden" },
+          { status: 400 }
+        );
+      }
+      if (visited.has(current)) break;
+      visited.add(current);
+      current = byId.get(current)?.parentId ?? null;
     }
   }
 
