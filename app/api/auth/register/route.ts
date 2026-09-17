@@ -9,6 +9,7 @@ import {
   sendVerificationEmail,
 } from "@/lib/verification";
 import { parseJsonBody } from "@/lib/request-body";
+import { createDefaultCategories } from "@/lib/default-categories";
 
 const RATE_LIMIT = 5; // Registrierungen
 const RATE_WINDOW_MS = 60 * 60 * 1000; // pro Stunde und IP
@@ -59,9 +60,29 @@ export async function POST(request: Request) {
   }
 
   const passwordHash = await hashPassword(password);
-  const user = await prisma.user.create({
-    data: { email, passwordHash, name },
-  });
+  // User und Standard-Kategorienbaum gemeinsam anlegen, damit kein User
+  // ohne Kategorien entsteht (z. B. bei einem Fehler mitten in der Anlage).
+  // Timeout bewusst höher als der Prisma-Default (5 s), da ein Neon-Cold-Start
+  // allein schon einen Teil davon aufbrauchen kann.
+  let user;
+  try {
+    user = await prisma.$transaction(
+      async (tx) => {
+        const createdUser = await tx.user.create({
+          data: { email, passwordHash, name },
+        });
+        await createDefaultCategories(tx, createdUser.id);
+        return createdUser;
+      },
+      { timeout: 15_000 },
+    );
+  } catch (error) {
+    console.error("[Registrierung] Anlegen von User/Kategorien fehlgeschlagen:", error);
+    return NextResponse.json(
+      { error: "Registrierung fehlgeschlagen. Bitte versuche es später erneut." },
+      { status: 500 },
+    );
+  }
 
   const token = await createVerificationToken(user.id);
   const url = buildVerificationUrl(token);
