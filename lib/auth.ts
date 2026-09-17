@@ -28,17 +28,31 @@ export async function createSession(userId: number) {
 export async function validateSession(token: string) {
   const session = await prisma.session.findUnique({
     where: { token: hashToken(token) },
-    include: { user: { select: { id: true, email: true, name: true } } },
+    include: {
+      user: {
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+          disabledAt: true,
+        },
+      },
+    },
   });
 
-  if (!session || session.expiresAt < new Date()) {
+  // Abgelaufene Sessions und Sessions gesperrter Konten werden verworfen.
+  // So wirkt eine Sperre sofort, auch falls beim Sperren eine Session
+  // übrig geblieben ist.
+  if (!session || session.expiresAt < new Date() || session.user.disabledAt) {
     if (session) {
-      await prisma.session.delete({ where: { id: session.id } });
+      await prisma.session.deleteMany({ where: { id: session.id } });
     }
     return null;
   }
 
-  return session.user;
+  const { id, email, name, role } = session.user;
+  return { id, email, name, role };
 }
 
 export async function deleteSession(token: string) {

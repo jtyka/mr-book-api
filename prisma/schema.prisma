@@ -92,12 +92,23 @@ model Category {
   @@map("categories")
 }
 
+// Rolle eines Nutzers. ADMIN darf die Nutzerverwaltung unter /api/admin
+// benutzen. Rollen werden nicht über die API vergeben, sondern per Seed/SQL.
+enum Role {
+  USER
+  ADMIN
+}
+
 model User {
   id            Int       @id @default(autoincrement())
   email         String    @unique
   passwordHash  String    @map("password_hash")
   name          String
   emailVerified DateTime? @map("email_verified")
+  role          Role      @default(USER)
+  // Gesetzt, wenn ein Admin das Konto gesperrt hat: Login wird abgelehnt,
+  // bestehende Sessions sind ungültig. Daten bleiben erhalten.
+  disabledAt    DateTime? @map("disabled_at")
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
   sessions      Session[]

@@ -38,10 +38,19 @@ export async function POST(request: Request) {
     return updated;
   });
 
+  // Ein gesperrtes Konto darf seine E-Mail bestätigen, wird aber nicht
+  // angemeldet.
+  if (user.disabledAt) {
+    return NextResponse.json(
+      { error: "Dieses Konto ist gesperrt." },
+      { status: 403 },
+    );
+  }
+
   const session = await createSession(user.id);
 
   return NextResponse.json({
-    user: { id: user.id, email: user.email, name: user.name },
+    user: { id: user.id, email: user.email, name: user.name, role: user.role },
     token: session.token,
     expiresAt: session.expiresAt.toISOString(),
   });

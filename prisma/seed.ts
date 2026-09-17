@@ -17,11 +17,12 @@ async function main() {
   });
   const admin = await prisma.user.upsert({
     where: { email: "admin@mr-book.de" },
-    update: {},
+    update: { role: "ADMIN" },
     create: {
       email: "admin@mr-book.de",
       passwordHash,
       name: "Admin",
+      role: "ADMIN",
     },
   });
   const userId = admin.id;

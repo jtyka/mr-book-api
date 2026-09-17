@@ -65,8 +65,16 @@ export async function POST(request: Request) {
     );
   }
 
-  // Verifizierungs-Check erst nach korrektem Passwort: wer das Passwort kennt,
-  // weiß ohnehin, dass das Konto existiert — verrät also nichts zusätzlich.
+  // Sperr- und Verifizierungs-Check erst nach korrektem Passwort: wer das
+  // Passwort kennt, weiß ohnehin, dass das Konto existiert — verrät also
+  // nichts zusätzlich.
+  if (user.disabledAt) {
+    return NextResponse.json(
+      { error: "Dieses Konto ist gesperrt." },
+      { status: 403 },
+    );
+  }
+
   if (REQUIRE_VERIFICATION && !user.emailVerified) {
     return NextResponse.json(
       { error: "Bitte bestätige zuerst deine E-Mail-Adresse." },
@@ -77,7 +85,7 @@ export async function POST(request: Request) {
   const session = await createSession(user.id);
 
   return NextResponse.json({
-    user: { id: user.id, email: user.email, name: user.name },
+    user: { id: user.id, email: user.email, name: user.name, role: user.role },
     token: session.token,
     expiresAt: session.expiresAt.toISOString(),
   });
