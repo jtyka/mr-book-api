@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { createSession } from "@/lib/auth";
+import { deleteSession, extractToken, setSessionCookie, createSession } from "@/lib/auth";
 import { verifyPassword } from "@/lib/password";
 import { loginSchema } from "@/lib/validation/auth";
 import { checkRateLimit, clientIp } from "@/lib/rate-limit";
@@ -74,11 +74,16 @@ export async function POST(request: Request) {
     );
   }
 
-  const session = await createSession(user.id);
+  // Eine evtl. mitgeschickte alte Session ungültig machen (Session-Fixation).
+  const oldToken = extractToken(request);
+  if (oldToken) await deleteSession(oldToken);
 
-  return NextResponse.json({
+  const session = await createSession(user.id, parsed.data.rememberMe);
+
+  const response = NextResponse.json({
     user: { id: user.id, email: user.email, name: user.name },
-    token: session.token,
     expiresAt: session.expiresAt.toISOString(),
   });
+  setSessionCookie(response, session);
+  return response;
 }
