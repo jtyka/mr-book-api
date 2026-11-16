@@ -46,6 +46,8 @@ model Book {
   description    String?
   rating         Int?
   review         String?
+  // Öffentliche Adresse der eigenen Cover-Kopie im Blob-Speicher (siehe lib/cover-store.ts)
+  coverUrl       String?         @map("cover_url")
   publisherId    Int?            @map("publisher_id")
   userId         Int             @map("user_id")
   user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)

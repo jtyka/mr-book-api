@@ -6,27 +6,8 @@ import { bookCreateSchema, bookIdsSchema } from "@/lib/validation/book";
 import { requireAuth } from "@/lib/require-auth";
 import { assertOwnedRelations } from "@/lib/ownership";
 import { parseJsonBody } from "@/lib/request-body";
-
-const bookInclude = {
-  authors: true,
-  publisher: true,
-  categories: { include: { parent: true } },
-  readingHistory: { orderBy: { startedAt: "desc" as const } },
-} satisfies Prisma.BookInclude;
-
-type BookWithRelations = Prisma.BookGetPayload<{ include: typeof bookInclude }>;
-
-function formatBook(book: BookWithRelations) {
-  return {
-    ...book,
-    categories: book.categories.map((c) => ({
-      id: c.id,
-      name: c.name,
-      parentId: c.parentId,
-      parentName: c.parent?.name ?? null,
-    })),
-  };
-}
+import { bookInclude, formatBook } from "@/lib/book-format";
+import { deleteCovers } from "@/lib/cover-store";
 
 // Liefert die ID der Kategorie samt aller Nachfahren im Kategoriebaum (nur eigene Kategorien)
 async function categoryIdsWithDescendants(
@@ -153,11 +134,12 @@ export async function DELETE(request: NextRequest) {
   }
   const ids = parsedIds.data;
 
+  const coverUrls: (string | null)[] = [];
   const count = await prisma.$transaction(async (tx) => {
     // Nur eigene Bücher berücksichtigen
     const owned = await tx.book.findMany({
       where: { id: { in: ids }, userId },
-      select: { id: true },
+      select: { id: true, coverUrl: true },
     });
     const ownedIds = owned.map((b) => b.id);
     if (ownedIds.length === 0) return 0;
@@ -165,8 +147,11 @@ export async function DELETE(request: NextRequest) {
     await tx.readingRecord.deleteMany({ where: { bookId: { in: ownedIds } } });
     // Prisma implicit M2M relations are auto-cleaned on delete
     const result = await tx.book.deleteMany({ where: { id: { in: ownedIds } } });
+    coverUrls.push(...owned.map((b) => b.coverUrl));
     return result.count;
   });
+  // Erst nach erfolgreicher Transaktion, Best-Effort
+  await deleteCovers(coverUrls);
 
   return NextResponse.json(count);
 }

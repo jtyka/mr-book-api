@@ -1,34 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { bookCreateSchema } from "@/lib/validation/book";
 import { requireAuth } from "@/lib/require-auth";
 import { assertOwnedRelations } from "@/lib/ownership";
 import { parseId } from "@/lib/params";
 import { parseJsonBody } from "@/lib/request-body";
+import { bookInclude, formatBook } from "@/lib/book-format";
+import { deleteCovers } from "@/lib/cover-store";
 
 type Params = { params: Promise<{ id: string }> };
-
-const bookInclude = {
-  authors: true,
-  publisher: true,
-  categories: { include: { parent: true } },
-  readingHistory: { orderBy: { startedAt: "desc" as const } },
-} satisfies Prisma.BookInclude;
-
-type BookWithRelations = Prisma.BookGetPayload<{ include: typeof bookInclude }>;
-
-function formatBook(book: BookWithRelations) {
-  return {
-    ...book,
-    categories: book.categories.map((c) => ({
-      id: c.id,
-      name: c.name,
-      parentId: c.parentId,
-      parentName: c.parent?.name ?? null,
-    })),
-  };
-}
 
 export async function GET(_request: NextRequest, { params }: Params) {
   const auth = await requireAuth(_request);
@@ -119,6 +99,8 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
     await tx.readingRecord.deleteMany({ where: { bookId: numId } });
     await tx.book.delete({ where: { id: numId } });
   });
+  // Erst nach erfolgreicher Transaktion, Best-Effort
+  await deleteCovers([existing.coverUrl]);
 
   return new NextResponse(null, { status: 204 });
 }

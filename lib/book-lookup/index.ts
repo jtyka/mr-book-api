@@ -9,6 +9,10 @@ export type { LookupResult } from "./types";
 // (Google vor Open Library ist eine Annahme, siehe SPEC Abschnitt 10.)
 export const SOURCE_PRIORITY: LookupSource[] = ["google", "openlibrary"];
 
+// Nur für das Feld coverUrl: Open Library vor Google, weil deren Cover größer
+// sind (SPEC Cover-Bilder, Abschnitt 3).
+export const COVER_PRIORITY: LookupSource[] = ["openlibrary", "google"];
+
 function titleOf(book: SourceBook): string | null {
   if (!book.title) return null;
   if (!book.subtitle) return book.title;
@@ -29,8 +33,12 @@ export function mergeSources(
   if (ordered.length === 0) return null;
 
   const used = new Set<LookupSource>();
-  function pick<T>(get: (book: SourceBook) => T | null, empty: (v: T) => boolean = () => false): T | null {
-    for (const { source, book } of ordered) {
+  function pick<T>(
+    get: (book: SourceBook) => T | null,
+    empty: (v: T) => boolean = () => false,
+    candidates = ordered,
+  ): T | null {
+    for (const { source, book } of candidates) {
       const value = get(book);
       if (value !== null && !empty(value)) {
         used.add(source);
@@ -47,7 +55,8 @@ export function mergeSources(
   const pageCount = pick((b) => b.pageCount);
   const language = pick((b) => b.language);
   const description = pick((b) => b.description);
-  const coverUrl = pick((b) => b.coverUrl);
+  const coverOrdered = COVER_PRIORITY.flatMap((s) => (found[s] ? [{ source: s, book: found[s]! }] : []));
+  const coverUrl = pick((b) => b.coverUrl, () => false, coverOrdered);
 
   // Katalogeintrag ohne ein einziges verwertbares Feld zählt als kein Treffer.
   if (used.size === 0) return null;
@@ -102,4 +111,15 @@ export async function lookupIsbn(isbn: string): Promise<LookupOutcome> {
   const result = mergeSources(isbn, found);
   if (result) return { kind: "found", result };
   return anyFailed ? { kind: "unavailable" } : { kind: "not-found" };
+}
+
+// Ermittelt nur die Cover-Adresse (für die Sammelaktion): Open Library zuerst,
+// Google nur, wenn Open Library keins hat (schont das Google-Kontingent).
+// Fehler und fehlende Treffer ergeben null.
+export async function lookupCoverUrl(isbn: string): Promise<string | null> {
+  for (const source of COVER_PRIORITY) {
+    const result = source === "openlibrary" ? await fetchOpenLibrary(isbn) : await fetchGoogleBooks(isbn);
+    if (result?.status === "found" && result.book.coverUrl) return result.book.coverUrl;
+  }
+  return null;
 }
