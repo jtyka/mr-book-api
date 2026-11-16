@@ -16,6 +16,8 @@ function getCorsHeaders(request: NextRequest): Record<string, string> {
     "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",
     "Access-Control-Allow-Credentials": "true",
+    // Ohne Freigabe kann der Browser Retry-After bei 429 nicht lesen.
+    "Access-Control-Expose-Headers": "Retry-After",
     Vary: "Origin",
     // Antworten enthalten nutzerbezogene Daten und dürfen nicht gecacht werden.
     "Cache-Control": "private, no-store",
