@@ -7,13 +7,23 @@ import { isWeakPassword } from "./weak-passwords";
 // - Keine erzwungenen Komposition-Regeln (Groß/Klein/Sonderzeichen) — NIST rät
 //   davon ab, da sie die Entropie kaum erhöhen und die Usability verschlechtern.
 // - Abgleich gegen eine Blocklist häufiger/geleakter Passwörter.
-const passwordSchema = z
+export const passwordSchema = z
   .string()
   .min(12, "Passwort muss mindestens 12 Zeichen lang sein")
   .max(128, "Passwort darf höchstens 128 Zeichen lang sein")
   .refine((pw) => !isWeakPassword(pw), {
     message: "Passwort ist zu leicht zu erraten. Bitte wähle ein sichereres.",
   });
+
+// Passwort darf nicht mit der E-Mail (oder deren lokalem Teil) übereinstimmen.
+export function passwordMatchesEmail(password: string, email: string): boolean {
+  const pw = password.toLowerCase();
+  const mail = email.toLowerCase();
+  return pw === mail || pw === mail.split("@")[0];
+}
+
+export const PASSWORD_EQUALS_EMAIL_MESSAGE =
+  "Passwort darf nicht deiner E-Mail-Adresse entsprechen.";
 
 export const registerSchema = z
   .object({
@@ -22,15 +32,11 @@ export const registerSchema = z
     name: z.string().min(1).max(100),
   })
   .superRefine((data, ctx) => {
-    // Passwort darf nicht mit der E-Mail (oder deren lokalem Teil) übereinstimmen.
-    const pw = data.password.toLowerCase();
-    const email = data.email.toLowerCase();
-    const localPart = email.split("@")[0];
-    if (pw === email || pw === localPart) {
+    if (passwordMatchesEmail(data.password, data.email)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["password"],
-        message: "Passwort darf nicht deiner E-Mail-Adresse entsprechen.",
+        message: PASSWORD_EQUALS_EMAIL_MESSAGE,
       });
     }
   });
@@ -47,4 +53,18 @@ export const verifyEmailSchema = z.object({
 
 export const resendVerificationSchema = z.object({
   email: z.string().email().max(254),
+});
+
+export const forgotPasswordSchema = z.object({
+  email: z.string().email().max(254),
+});
+
+export const resetTokenSchema = z.object({
+  token: z.string().min(1).max(200),
+});
+
+// Das Passwort wird in der Route geprüft (passwordSchema, nicht gegen die E-Mail
+// des Kontos), damit ein zu schwaches Passwort den Token nicht verbraucht.
+export const resetPasswordSchema = resetTokenSchema.extend({
+  password: z.string().max(1000),
 });

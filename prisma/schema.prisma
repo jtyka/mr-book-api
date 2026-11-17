@@ -104,6 +104,7 @@ model User {
   updatedAt     DateTime  @updatedAt @map("updated_at")
   sessions      Session[]
   verificationTokens VerificationToken[]
+  passwordResetTokens PasswordResetToken[]
   publishers    Publisher[]
   authors       Author[]
   books         Book[]
@@ -135,6 +136,21 @@ model VerificationToken {
 
   @@index([userId])
   @@map("verification_tokens")
+}
+
+// Einmal-Token zum Zurücksetzen des Passworts (nur der SHA-256-Hash liegt in der
+// DB). Bewusst getrennt von VerificationToken: ein Bestätigungs-Token darf nie
+// als Reset-Token gelten und umgekehrt.
+model PasswordResetToken {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique
+  userId    Int      @map("user_id")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("password_reset_tokens")
 }
 
 // Protokolliert Login-/Registrierungsversuche pro Schlüssel (i. d. R. IP)
