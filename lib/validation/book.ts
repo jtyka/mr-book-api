@@ -26,11 +26,29 @@ export const bookIdsSchema = z
 
 const datePrecisionSchema = z.enum(["DAY", "MONTH", "YEAR"]);
 
-export const readingRecordCreateSchema = z.object({
-  startedAt: optionalDateString,
-  startedAtPrecision: datePrecisionSchema.nullable().optional(),
+export const readingRecordCreateSchema = z
+  .object({
+    startedAt: optionalDateString,
+    startedAtPrecision: datePrecisionSchema.nullable().optional(),
+    readAt: optionalDateString,
+    readAtPrecision: datePrecisionSchema.nullable().optional(),
+    finished: z.boolean().default(true),
+  })
+  .refine((d) => d.finished || !d.readAt, {
+    message: "Ein nicht abgeschlossener Eintrag darf kein Lesedatum haben",
+    path: ["readAt"],
+  })
+  .refine((d) => d.finished || !!d.startedAt, {
+    message: "Ein nicht abgeschlossener Eintrag braucht ein Beginn-Datum",
+    path: ["startedAt"],
+  });
+
+export const readingRecordPatchSchema = z.object({
+  finished: z.boolean().optional(),
   readAt: optionalDateString,
   readAtPrecision: datePrecisionSchema.nullable().optional(),
 });
+
+export type ReadingRecordPatchInput = z.infer<typeof readingRecordPatchSchema>;
 
 export type ReadingRecordCreateInput = z.infer<typeof readingRecordCreateSchema>;

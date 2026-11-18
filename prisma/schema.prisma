@@ -75,6 +75,7 @@ model ReadingRecord {
   startedAtPrecision DatePrecision? @map("started_at_precision")
   readAt             DateTime?      @map("read_at") @db.Date
   readAtPrecision    DatePrecision? @map("read_at_precision")
+  finished           Boolean        @default(true) @map("finished")
   book               Book           @relation(fields: [bookId], references: [id], onDelete: Cascade)
 
   @@map("reading_records")

@@ -13,6 +13,7 @@ export async function GET(request: NextRequest) {
     totalCategories,
     totalReadingRecords,
     booksReadResult,
+    booksReading,
     ratingAgg,
     pageCountAgg,
   ] = await Promise.all([
@@ -22,9 +23,15 @@ export async function GET(request: NextRequest) {
     prisma.category.count({ where: { userId } }),
     prisma.readingRecord.count({ where: { book: { userId } } }),
     prisma.readingRecord.findMany({
-      where: { book: { userId } },
+      where: { finished: true, book: { userId } },
       select: { bookId: true },
       distinct: ["bookId"],
+    }),
+    prisma.book.count({
+      where: {
+        userId,
+        readingHistory: { none: { finished: true }, some: { finished: false } },
+      },
     }),
     prisma.book.aggregate({
       _avg: { rating: true },
@@ -118,6 +125,7 @@ export async function GET(request: NextRequest) {
     totalCategories,
     totalReadingRecords,
     booksRead,
+    booksReading,
     averageRating: ratingAgg._avg.rating ?? null,
     averagePageCount: pageCountAgg._avg.pageCount ?? null,
     booksByLanguage,

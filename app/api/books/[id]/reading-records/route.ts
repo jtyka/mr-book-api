@@ -56,6 +56,7 @@ export async function POST(request: NextRequest, { params }: Params) {
       readAtPrecision: parsed.data.readAt
         ? parsed.data.readAtPrecision ?? "DAY"
         : null,
+      finished: parsed.data.finished,
     },
   });
 

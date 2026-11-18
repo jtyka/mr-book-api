@@ -56,7 +56,21 @@ export async function GET(request: NextRequest) {
     request.nextUrl.searchParams.get("categoryId") ?? "",
     10
   );
+  const status = request.nextUrl.searchParams.get("status");
+  if (status !== null && !["unread", "reading", "read"].includes(status)) {
+    return NextResponse.json({ error: "Ungültiger Status" }, { status: 400 });
+  }
   const where: Prisma.BookWhereInput = { userId };
+  if (status === "read") {
+    where.readingHistory = { some: { finished: true } };
+  } else if (status === "reading") {
+    where.readingHistory = {
+      none: { finished: true },
+      some: { finished: false },
+    };
+  } else if (status === "unread") {
+    where.readingHistory = { none: {} };
+  }
   if (Number.isFinite(categoryId)) {
     where.categories = {
       some: { id: { in: await categoryIdsWithDescendants(categoryId, userId) } },
